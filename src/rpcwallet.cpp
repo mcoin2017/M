@@ -234,14 +234,18 @@ Value getnewaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw std::runtime_error(
-            "getnewaddress [account] [normal]\n"
-            "Returns a new M stealth address for receiving payments.  "
-        "If normal is specified, a normal address will be provided. "
+            "getnewaddress [account] [stealth]\n"
+            "Returns a new M address for receiving payments.  "
+        "If stealth is specified, a stealth address will be provided. "
             "If [account] is specified, it is added to the address book "
             "so payments received with the address will be credited to [account].");
 
     // Parse the account first so we don't generate a key if there's an error
     if(params.size() > 1)
+    {
+        return getnewstealthaddress(params, fHelp);
+    }
+    else
     {
         std::string strAccount;
         if (params.size() > 0)
@@ -259,10 +263,6 @@ Value getnewaddress(const Array& params, bool fHelp)
         pwalletMain->SetAddressBookName(keyID, strAccount, NULL, true, true);
 
         return CBitcoinAddress(keyID).ToString();
-    }
-    else
-    {
-        return getnewstealthaddress(params, fHelp);
     }
 }
 
@@ -343,43 +343,14 @@ Value getaccountaddress(const Array& params, bool fHelp)
     if (fHelp || params.size() != 1)
         throw std::runtime_error(
             "getaccountaddress <account>\n"
-            "Returns the current M stealth address for receiving payments to this account.");
+            "Returns the current M address for receiving payments to this account.");
 
     // Parse the account first so we don't generate a key if there's an error
     std::string strAccount = AccountFromValue(params[0]);
 
     Value ret;
 
-    //ret = GetAccountAddress(strAccount).ToString();
-
-    // Find the stealth address with label matching this account name.  If one doesn't exist, create one.
-    bool bFound = false;
-    std::set<CStealthAddress>::iterator it;
-    for (it = pwalletMain->stealthAddresses.begin(); it != pwalletMain->stealthAddresses.end(); ++it)
-    {
-        if (it->scan_secret.size() < 1)
-            continue; // stealth address is not owned
-
-        if (it->label == strAccount)
-        {
-            ret = it->Encoded();
-        bFound = true;
-        break;
-        };
-    }
-
-    if(!bFound)
-    {
-    // Create a new stealth address for this label
-    CStealthAddress newStealthAddr;
-        std::string sError;
-        if (!pwalletMain->NewStealthAddress(sError, strAccount, newStealthAddr)
-            || !pwalletMain->AddStealthAddress(newStealthAddr))
-        {
-            ret = "Stealth address generation failure. " + sError;
-        }
-        ret = newStealthAddr.Encoded();
-    }
+    ret = GetAccountAddress(strAccount).ToString();
 
     return ret;
 }
